@@ -1,34 +1,31 @@
-import numpy as np
 import time
+import numpy as np
+import matplotlib.pyplot as pl
 
-# Machine setup
 
 from cpymad.madx import Madx
 import pysixtracklib as pyst
 
+
+# prepare madx
 mad = Madx()
 mad.options.echo = False
+mad.call(file="SPS_Q20_thin.seq")
+mad.use(sequence='sps')
+twiss = mad.twiss()
+q1mad = twiss.summary['q1']
+q2mad = twiss.summary['q2']
+print(q1mad, q2mad)
 
-mad.call(file="fodo.madx")
-mad.command.beam(particle='proton', energy='6')
-mad.use(sequence="FODO")
-mad.twiss()
+# Build elements for SixTrackLib
+elements = pyst.Elements.from_mad(mad.sequence.sps)
 
-mad.command.select(flag="makethin", class_="quadrupole", slice='8')
-mad.command.select(flag="makethin", class_="sbend", slice='8')
-mad.command.makethin(makedipedge=False, style="teapot", sequence="fodo")
-
-mad.twiss()
-
-sis18 = mad.sequence.FODO
-
-elements = pyst.Elements.from_mad(sis18)
 
 # Tracking
 
 npart = int(2e4)
 print("CPU")
-particles = pyst.Particles.from_ref(npart, p0c=6e9)
+particles = pyst.Particles.from_ref(npart, p0c=26e9)
 particles.x=np.linspace(0,0.001,npart)
 job = pyst.TrackJob(elements, particles, arch='cpu')
 for nturns in range(10,50,10):
@@ -45,4 +42,5 @@ for nturns in range(10,50,10):
   job.track(nturns)
   job.collect()
   print(f"turn {nturns:4d} - {time.time() - start:10.6f} s")
+
 
